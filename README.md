@@ -41,7 +41,7 @@ The device measures temperature and humidity, sends the data to a backend server
 
  ```json
 {
-  "deviceId": "f8b2f8c4-9f31-4f0b-8f9c-f6e63c6b1d72",
+  "deviceId": "xxxx-xxxx-xxxx-xxxx",
   "temperature": 24.5,
   "humidity": 55.0
 }
