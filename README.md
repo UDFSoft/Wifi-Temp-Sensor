@@ -53,6 +53,7 @@ The backend receives the data and forwards it to a Telegram bot, so you can easi
 
 
 ## 📷 Photo (example)
-
+![<img src="IMG_20250822_192728.jpg" alt="Device preview" width="200">](IMG_20250822_192728.jpg)
+![<img src="IMG_20250822_192740.jpg" alt="Device preview" width="200">](IMG_20250822_192740.jpg)
 
 ## 🔧 Author: udfowner
