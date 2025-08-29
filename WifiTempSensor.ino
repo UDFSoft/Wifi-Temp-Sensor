@@ -19,26 +19,49 @@
 #include "DHT.h"
 
 #include <WiFi.h>
-#include <WiFiManager.h>
+#include <WiFiManager.h>  // lib tzapu/WiFiManager
 
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
-#define API_KEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  // YOUR API Key, to get it write to us: support@udfsoft.com
-#define DEVICE_ID "xxxx-xxxx-xxxx-xxxx-xxxx"  // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
+#define APP_VERSION "1"
+#define DEVICE_ID "xxxx-xxxx-xxxx-xxxx-xxxx" // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
 
+#define ENDPOINT_URL "https://smart.udfsoft.com/api/temperature/add"
+
+#define API_KEY  ""xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"" // YOUR API Key, to get it write to us: support@udfsoft.com
 
 #define LED_PIN 8
 
-#define DHTPIN 2 // GPIO2
+#define DHTPIN 2       // GPIO2
 #define DHTTYPE DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
 
+unsigned long lastBlink = 0;
+unsigned long lastSend = 0;
+
+const unsigned long BLINK_INTERVAL = 5000;  // 5 sec
+const unsigned long SEND_INTERVAL = 60000;   // 1 min
+
+bool ledState = false;
+
 void setup() {
   setupDhtSensor();
+
+  printDeviceInfo();
+
   setupLedPin();
   setupWifi();
+}
+
+void printDeviceInfo() {
+
+  Serial.println(" ======================= ");
+  Serial.println("   Hi, I'm smart device)");
+  Serial.println("   Device ID: " + String(DEVICE_ID));
+  Serial.println("   App version: " + String(APP_VERSION));
+  Serial.println(" ======================= ");
 }
 
 void setupDhtSensor() {
@@ -53,8 +76,13 @@ void setupLedPin() {
 void setupWifi() {
   WiFiManager wm;
 
+  //for test
   // wm.resetSettings();
 
+  wm.setConnectTimeout(120);  // 2 mins
+  wm.setConfigPortalTimeout(300);
+
+  // If the connection fails, the configurator will start
   if (!wm.autoConnect("ESP32_AP", "12345678")) {
     Serial.println("Failed to connect, rebooting...");
     ESP.restart();
@@ -67,49 +95,59 @@ void setupWifi() {
 
 void loop() {
 
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
+  unsigned long now = millis();
 
-  if (isnan(h) || isnan(t)) {
-    Serial.println("Reading error with DHT11!");
-    return;
+  if (now - lastBlink >= BLINK_INTERVAL) {
+    lastBlink = now;
+    ledState = !ledState;
+    digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+    Serial.println("Blink!");
   }
 
-  sendSensorDataToWeb(h, t);
+  if (now - lastSend >= SEND_INTERVAL) {
+    lastSend = now;
 
-  Serial.print("Temperature: ");
-  Serial.print(t);
-  Serial.print(" °C  |  Humidity: ");
-  Serial.print(h);
-  Serial.println(" %");
+    float temp = dht.readTemperature();
+    float hum = dht.readHumidity();
 
-  digitalWrite(LED_PIN, HIGH);
+    if (!isnan(temp) && !isnan(hum)) {
 
-  delay(2000);
+      sendSensorDataToWeb(temp, hum);
 
-  digitalWrite(LED_PIN, LOW);
-  delay(28000);
+      Serial.print("Temperature: ");
+      Serial.print(temp);
+      Serial.print(" °C  |  Humidity: ");
+      Serial.print(hum);
+      Serial.println(" %");
+    } else {
+      Serial.println("Reading error with DHT11!");
+    }
+  }
+
+  delay(500);
 }
 
 void sendSensorDataToWeb(float humidity, float temperature) {
   if (WiFi.status() == WL_CONNECTED) {
     WiFiClientSecure client;
-    client.setInsecure();
+    client.setInsecure();  // ⚠️ disable certificate verification
 
     HTTPClient https;
-    https.begin(client, "https://smart.udfsoft.com/api/temperature/add");
+
+    https.setTimeout(15000);
+    https.begin(client, ENDPOINT_URL);
     https.addHeader("Content-Type", "application/json");
     https.addHeader("X-Api-Key", String(API_KEY));
     https.addHeader("X-DEVICE-ID", String(DEVICE_ID));
 
+    https.addHeader("X-APP-VERSION", String(APP_VERSION));
 
-    // формируем JSON
     String body = "{";
     body += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
     body += "\"temperature\":" + String(temperature, 1) + ",";
     body += "\"humidity\":" + String(humidity, 1);
     body += "}";
-  
+
     Serial.print("Body: ");
     Serial.println(body);
 
@@ -126,6 +164,7 @@ void sendSensorDataToWeb(float humidity, float temperature) {
 
     https.end();
   } else {
-    Serial.println("WiFi is not connected!");
+    Serial.println("WiFi is not connected");
   }
 }
+
