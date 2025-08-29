@@ -24,7 +24,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
-#define APP_VERSION "1"
+#define APP_VERSION "2"
 #define DEVICE_ID "xxxx-xxxx-xxxx-xxxx-xxxx" // YOUR DEVICE ID, to get it write to us: support@udfsoft.com
 
 #define ENDPOINT_URL "https://smart.udfsoft.com/api/temperature/add"
@@ -127,7 +127,7 @@ void loop() {
   delay(500);
 }
 
-void sendSensorDataToWeb(float humidity, float temperature) {
+void sendSensorDataToWeb(float temperature, float humidity) {
   if (WiFi.status() == WL_CONNECTED) {
     WiFiClientSecure client;
     client.setInsecure();  // ⚠️ disable certificate verification
